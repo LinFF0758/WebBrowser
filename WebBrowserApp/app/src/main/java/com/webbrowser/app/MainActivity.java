@@ -2,6 +2,7 @@ package com.webbrowser.app;
 
 import android.annotation.SuppressLint;
 import android.app.Activity;
+import android.content.ContentValues;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
@@ -11,6 +12,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.PowerManager;
+import android.provider.MediaStore;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.WindowInsets;
@@ -37,8 +39,6 @@ import androidx.core.content.ContextCompat;
 import org.json.JSONArray;
 import org.json.JSONException;
 
-import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -56,7 +56,7 @@ public class MainActivity extends AppCompatActivity {
 
     private static final String PREFS_NAME = "browser_prefs";
     private static final String KEY_HISTORY = "url_history";
-    private static final String KEY_HTML_COPIED = "html_copied";
+    private static final String KEY_HTML_COPIED = "html_copied_v2";
     private static final int MAX_HISTORY = 20;
 
     private final ActivityResultLauncher<Intent> filePickerLauncher =
@@ -108,8 +108,8 @@ public class MainActivity extends AppCompatActivity {
         copyHtmlToDownloads();
 
         // 默认加载
-        webView.loadUrl("https://www.google.com");
-        urlInput.setText("https://www.google.com");
+        webView.loadUrl("https://www.qq.com");
+        urlInput.setText("https://www.qq.com");
     }
 
     private void setFullScreen() {
@@ -330,19 +330,35 @@ public class MainActivity extends AppCompatActivity {
         if (prefs.getBoolean(KEY_HTML_COPIED, false)) return;
 
         String[] files = {"DimOrderTest2.html", "videoPlayer.html"};
-        File downloadsDir = getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS);
-        if (downloadsDir == null) return;
-        if (!downloadsDir.exists()) downloadsDir.mkdirs();
-
         boolean allOk = true;
+
         for (String fileName : files) {
-            File destFile = new File(downloadsDir, fileName);
-            try (InputStream in = getAssets().open(fileName);
-                 OutputStream out = new FileOutputStream(destFile)) {
-                byte[] buf = new byte[8192];
-                int len;
-                while ((len = in.read(buf)) > 0) {
-                    out.write(buf, 0, len);
+            try (InputStream in = getAssets().open(fileName)) {
+                // 先删除 Download 目录中已存在的同名文件（防止重复）
+                getContentResolver().delete(
+                        MediaStore.Downloads.EXTERNAL_CONTENT_URI,
+                        MediaStore.Downloads.DISPLAY_NAME + "=?",
+                        new String[]{fileName});
+
+                ContentValues values = new ContentValues();
+                values.put(MediaStore.Downloads.DISPLAY_NAME, fileName);
+                values.put(MediaStore.Downloads.MIME_TYPE, "text/html");
+                values.put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS);
+
+                Uri uri = getContentResolver().insert(
+                        MediaStore.Downloads.EXTERNAL_CONTENT_URI, values);
+                if (uri != null) {
+                    try (OutputStream out = getContentResolver().openOutputStream(uri)) {
+                        if (out != null) {
+                            byte[] buf = new byte[8192];
+                            int len;
+                            while ((len = in.read(buf)) > 0) {
+                                out.write(buf, 0, len);
+                            }
+                        }
+                    }
+                } else {
+                    allOk = false;
                 }
             } catch (IOException e) {
                 allOk = false;
