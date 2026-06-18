@@ -71,8 +71,8 @@ public class MainActivity extends AppCompatActivity {
         // 设置全屏模式
         setFullScreen();
 
-        // 禁止休眠
-        keepScreenOn();
+        // 禁止休眠 - 初始化WakeLock对象（在onResume中acquire）
+        initWakeLock();
 
         // 初始化视图
         initViews();
@@ -121,18 +121,29 @@ public class MainActivity extends AppCompatActivity {
     }
 
     @SuppressLint("WakelockTimeout")
-    private void keepScreenOn() {
-        // 方法1: Window flag
+    private void initWakeLock() {
+        // Window flag: Activity可见时自动保持亮屏，不可见时自动失效
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
-        // 方法2: WakeLock 更强制
+        // WakeLock: 更强制，需手动管理生命周期
         PowerManager powerManager = (PowerManager) getSystemService(POWER_SERVICE);
         if (powerManager != null) {
             wakeLock = powerManager.newWakeLock(
                     PowerManager.SCREEN_BRIGHT_WAKE_LOCK
                             | PowerManager.ON_AFTER_RELEASE,
                     "WebBrowser::WakeLock");
+        }
+    }
+
+    private void acquireWakeLock() {
+        if (wakeLock != null && !wakeLock.isHeld()) {
             wakeLock.acquire();
+        }
+    }
+
+    private void releaseWakeLock() {
+        if (wakeLock != null && wakeLock.isHeld()) {
+            wakeLock.release();
         }
     }
 
@@ -297,25 +308,26 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onPause() {
         super.onPause();
-        // 暂停WebView（可选）
         webView.onPause();
+        // 切后台时释放WakeLock，允许系统休眠
+        releaseWakeLock();
     }
 
     @Override
     protected void onResume() {
         super.onResume();
         webView.onResume();
+        // 回到前台时重新持有WakeLock
+        acquireWakeLock();
         // 恢复全屏
         setFullScreen();
     }
 
     @Override
     protected void onDestroy() {
-        // 释放WakeLock
-        if (wakeLock != null && wakeLock.isHeld()) {
-            wakeLock.release();
-            wakeLock = null;
-        }
+        // 释放WakeLock（兜底）
+        releaseWakeLock();
+        wakeLock = null;
         // 清理WebView
         if (webView != null) {
             webView.destroy();
