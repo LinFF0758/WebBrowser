@@ -343,7 +343,10 @@ public class MainActivity extends AppCompatActivity {
                 ContentValues values = new ContentValues();
                 values.put(MediaStore.Downloads.DISPLAY_NAME, fileName);
                 values.put(MediaStore.Downloads.MIME_TYPE, "text/html");
-                values.put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS);
+                // RELATIVE_PATH 是 API 29 新增的，API 28 不支持
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    values.put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS);
+                }
 
                 Uri uri = getContentResolver().insert(
                         MediaStore.Downloads.EXTERNAL_CONTENT_URI, values);
