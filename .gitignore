@@ -1,0 +1,23 @@
+# Android
+*.apk
+*.aab
+*.dex
+*.class
+*.log
+gen/
+out/
+build/
+.idea/
+*.iml
+local.properties
+
+# Gradle
+.gradle/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test
+*.hprof
+*.trace
