@@ -1,7 +1,6 @@
 package com.webbrowser.app;
 
 import android.graphics.Color;
-import android.graphics.Paint;
 import android.os.Bundle;
 import android.widget.Button;
 import android.widget.TextView;
@@ -66,7 +65,6 @@ public class BatteryChartActivity extends AppCompatActivity {
         lineChart.setDrawBorders(false);
         lineChart.setNoDataText(getString(R.string.no_data));
         lineChart.setNoDataTextColor(Color.GRAY);
-        lineChart.setNoDataTextAlignment(Paint.Align.CENTER);
 
         // 只允许X轴缩放（时间轴），固定Y轴
         lineChart.setScaleXEnabled(true);
