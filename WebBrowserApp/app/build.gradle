@@ -1,37 +1,37 @@
 plugins {
-    id("com.android.application")
+    id 'com.android.application'
 }
 
 android {
-    namespace = "com.webbrowser.app"
-    compileSdk = 35
+    namespace 'com.webbrowser.app'
+    compileSdk 35
 
     defaultConfig {
-        applicationId = "com.webbrowser.app"
-        minSdk = 28
-        targetSdk = 35
-        versionCode = 1
-        versionName = "1.0"
+        applicationId 'com.webbrowser.app'
+        minSdk 28
+        targetSdk 35
+        versionCode 1
+        versionName '1.0'
     }
 
     buildTypes {
         release {
-            minifyEnabled = false
+            minifyEnabled false
             proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
+                getDefaultProguardFile('proguard-android-optimize.txt'),
+                'proguard-rules.pro'
             )
         }
     }
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_1_8
-        targetCompatibility = JavaVersion.VERSION_1_8
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
     }
 }
 
 dependencies {
-    implementation("androidx.appcompat:appcompat:1.7.0")
-    implementation("com.google.android.material:material:1.12.0")
-    implementation("com.github.PhilJay:MPAndroidChart:v3.1.0")
+    implementation 'androidx.appcompat:appcompat:1.7.0'
+    implementation 'com.google.android.material:material:1.12.0'
+    implementation 'com.github.PhilJay:MPAndroidChart:v3.1.0'
 }
