@@ -329,23 +329,29 @@ public class MainActivity extends AppCompatActivity {
         SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
         if (prefs.getBoolean(KEY_HTML_COPIED, false)) return;
 
-        String fileName = "DimOrderTest2.html";
+        String[] files = {"DimOrderTest2.html", "videoPlayer.html"};
         File downloadsDir = getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS);
         if (downloadsDir == null) return;
         if (!downloadsDir.exists()) downloadsDir.mkdirs();
 
-        File destFile = new File(downloadsDir, fileName);
-        try (InputStream in = getAssets().open(fileName);
-             OutputStream out = new FileOutputStream(destFile)) {
-            byte[] buf = new byte[8192];
-            int len;
-            while ((len = in.read(buf)) > 0) {
-                out.write(buf, 0, len);
+        boolean allOk = true;
+        for (String fileName : files) {
+            File destFile = new File(downloadsDir, fileName);
+            try (InputStream in = getAssets().open(fileName);
+                 OutputStream out = new FileOutputStream(destFile)) {
+                byte[] buf = new byte[8192];
+                int len;
+                while ((len = in.read(buf)) > 0) {
+                    out.write(buf, 0, len);
+                }
+            } catch (IOException e) {
+                allOk = false;
             }
+        }
+
+        if (allOk) {
             prefs.edit().putBoolean(KEY_HTML_COPIED, true).apply();
-            Toast.makeText(this, fileName + " " + getString(R.string.html_copied), Toast.LENGTH_LONG).show();
-        } catch (IOException e) {
-            // 文件可能已在assets中不存在，静默失败
+            Toast.makeText(this, getString(R.string.html_copied), Toast.LENGTH_LONG).show();
         }
     }
 
