@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">WebBrowser</string>
+    <string name="url_hint">输入网址或搜索关键词…</string>
+    <string name="go">前往</string>
+    <string name="local">本地</string>
+    <string name="settings_icon">⚙</string>
+    <string name="log_viewer">电池日志</string>
+    <string name="battery_chart">电池曲线</string>
+    <string name="battery_log">电池日志记录</string>
+    <string name="battery_chart_title">电池电量曲线</string>
+    <string name="refresh">刷新</string>
+    <string name="export_log">导出</string>
+    <string name="clear">清空</string>
+    <string name="reset_zoom">重置缩放</string>
+    <string name="loading">加载中…</string>
+    <string name="battery_level">电量(%)</string>
+    <string name="charging">充电中</string>
+    <string name="discharging">放电中</string>
+    <string name="chart_tip_text">双指捏合/拉伸可缩放时间轴</string>
+    <string name="settings_title">设置</string>
+    <string name="view_log">查看电池日志</string>
+    <string name="view_chart">查看电池曲线</string>
+    <string name="service_notification">电池监控运行中</string>
+    <string name="channel_name">电池监控</string>
+    <string name="no_data">暂无数据</string>
+</resources>

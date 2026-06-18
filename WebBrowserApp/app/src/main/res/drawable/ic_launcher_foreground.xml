@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Globe circle -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M54,30 C67.255,30 78,40.745 78,54 C78,67.255 67.255,78 54,78 C40.745,78 30,67.255 30,54 C30,40.745 40.745,30 54,30 Z M54,34 C42.954,34 34,42.954 34,54 C34,65.046 42.954,74 54,74 C65.046,74 74,65.046 74,54 C74,42.954 65.046,34 54,34 Z" />
+    <!-- Horizontal line -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M32,54 L76,54" 
+        android:strokeWidth="2"
+        android:strokeColor="#FFFFFF" />
+    <!-- Vertical arc left -->
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M54,32 Q40,54 54,76"
+        android:strokeWidth="2"
+        android:strokeColor="#FFFFFF" />
+    <!-- Vertical arc right -->
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M54,32 Q68,54 54,76"
+        android:strokeWidth="2"
+        android:strokeColor="#FFFFFF" />
+</vector>
