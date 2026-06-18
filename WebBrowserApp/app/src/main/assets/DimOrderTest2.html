@@ -1,0 +1,1389 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+  <title>金記掌櫃 · 外賣訂單狀態監控</title>
+  <style>
+    :root {
+      --bg: #f5f0eb;
+      --card-bg: #ffffff;
+      --primary: #c41e3a;
+      --primary-dark: #8b0000;
+      --gold: #c8973e;
+      --gold-light: #f0d89c;
+      --text: #2c2416;
+      --text-secondary: #6b5e4a;
+      --border: #e8ddd0;
+      --success: #2d8b4e;
+      --warning: #e8831a;
+      --info: #3b6fb6;
+      --shadow-sm: 0 1px 3px rgba(44, 36, 22, 0.08);
+      --shadow-md: 0 4px 16px rgba(44, 36, 22, 0.12);
+      --shadow-lg: 0 8px 32px rgba(44, 36, 22, 0.16);
+      --radius-sm: 8px;
+      --radius: 12px;
+      --radius-lg: 16px;
+      --transition: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      --font-stack: 'PingFang HK', 'Noto Sans HK', 'Microsoft YaHei', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: var(--font-stack);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      background-image:
+        radial-gradient(ellipse at 50% 0%, rgba(200, 150, 60, 0.06) 0%, transparent 60%),
+        radial-gradient(ellipse at 85% 20%, rgba(196, 30, 58, 0.04) 0%, transparent 50%);
+      background-attachment: fixed;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ========== 顶部导航栏 ========== */
+    .navbar {
+      background: linear-gradient(135deg, #1a0f0a 0%, #2c1810 40%, #1a0f0a 100%);
+      color: #fff;
+      padding: 0 20px;
+      min-height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 2px 20px rgba(0, 0, 0, 0.3);
+      border-bottom: 2px solid var(--gold);
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .navbar-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 1.25rem;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .navbar-brand .icon {
+      width: 38px;
+      height: 38px;
+      background: var(--gold);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      color: #1a0f0a;
+      flex-shrink: 0;
+      box-shadow: 0 0 16px rgba(200, 150, 60, 0.4);
+    }
+    .navbar-brand .subtitle {
+      font-size: 0.65rem;
+      font-weight: 400;
+      opacity: 0.75;
+      letter-spacing: 0.06em;
+      display: block;
+      line-height: 1;
+    }
+    .navbar-right {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+    .navbar-time {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(255, 255, 255, 0.06);
+      padding: 6px 14px;
+      border-radius: 24px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      white-space: nowrap;
+    }
+    .navbar-time .time-display {
+      font-size: 1.25rem;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+      font-family: 'SF Mono', 'JetBrains Mono', 'Consolas', monospace;
+      color: #f0d89c;
+    }
+    .navbar-time .time-label {
+      font-size: 0.6rem;
+      opacity: 0.7;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      display: block;
+      line-height: 1;
+    }
+    .sync-indicator {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #4caf50;
+      flex-shrink: 0;
+      animation: syncPulse 2s ease-in-out infinite;
+    }
+    .sync-indicator.syncing {
+      background: #ff9800;
+      animation: syncSpin 0.6s ease-in-out infinite;
+    }
+    @keyframes syncPulse {
+      0%,
+      100% {
+        box-shadow: 0 0 6px rgba(76, 175, 80, 0.5);
+      }
+      50% {
+        box-shadow: 0 0 14px rgba(76, 175, 80, 0.9);
+      }
+    }
+    @keyframes syncSpin {
+      0%,
+      100% {
+        transform: scale(1);
+      }
+      50% {
+        transform: scale(1.8);
+        opacity: 0.5;
+      }
+    }
+    .navbar-stats {
+      display: flex;
+      gap: 16px;
+      font-size: 0.75rem;
+      opacity: 0.85;
+      white-space: nowrap;
+    }
+    .navbar-stats span {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .navbar-stats .stat-value {
+      font-weight: 700;
+      color: var(--gold-light);
+      font-size: 1rem;
+    }
+
+    /* 模拟控制按钮组 */
+    .simulation-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+      flex-wrap: wrap;
+    }
+    .sim-btn {
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-weight: 700;
+      font-size: 0.75rem;
+      letter-spacing: 0.03em;
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: all var(--transition);
+      font-family: inherit;
+      white-space: nowrap;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .btn-auto {
+      background: #2d8b4e;
+      color: #fff;
+      border-color: #276e3e;
+      box-shadow: 0 2px 8px rgba(45, 139, 78, 0.4);
+    }
+    .btn-auto:hover:not(:disabled) {
+      background: #236b3c;
+    }
+    .btn-manual {
+      background: #3b6fb6;
+      color: #fff;
+      border-color: #2b4f8a;
+      box-shadow: 0 2px 8px rgba(59, 111, 182, 0.4);
+    }
+    .btn-manual:hover:not(:disabled) {
+      background: #2b4f8a;
+    }
+    .btn-stop {
+      background: #c41e3a;
+      color: #fff;
+      border-color: #a01830;
+      box-shadow: 0 2px 8px rgba(196, 30, 58, 0.4);
+    }
+    .btn-stop:hover:not(:disabled) {
+      background: #a01830;
+    }
+    .sim-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      filter: grayscale(20%);
+      box-shadow: none;
+    }
+    .sim-status {
+      font-size: 0.7rem;
+      font-weight: 600;
+      color: var(--gold-light);
+      margin-left: 4px;
+      white-space: nowrap;
+    }
+
+    /* 声音开关 */
+    .sound-toggle {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 20px;
+      padding: 4px 10px;
+      cursor: pointer;
+      font-size: 0.7rem;
+      color: #fff;
+      user-select: none;
+      transition: all var(--transition);
+      white-space: nowrap;
+    }
+    .sound-toggle:hover {
+      background: rgba(255, 255, 255, 0.14);
+    }
+    .sound-toggle.muted {
+      opacity: 0.5;
+    }
+
+    /* ========== 主布局 ========== */
+    .main-container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 20px 24px;
+    }
+
+    /* ========== 通知横幅 ========== */
+    .notification-banner {
+      background: linear-gradient(135deg, #c41e3a, #e8453c);
+      color: #fff;
+      padding: 12px 20px;
+      border-radius: var(--radius);
+      margin-bottom: 18px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 600;
+      font-size: 0.9rem;
+      animation: slideInDown 0.4s ease-out;
+      box-shadow: var(--shadow-md);
+    }
+    .notification-banner.fade-out {
+      opacity: 0;
+      transform: translateY(-10px);
+      max-height: 0;
+      padding: 0 20px;
+      margin-bottom: 0;
+      overflow: hidden;
+    }
+    @keyframes slideInDown {
+      from {
+        opacity: 0;
+        transform: translateY(-20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* ========== 订单网格 ========== */
+    .orders-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
+      gap: 16px;
+    }
+    @media (max-width: 900px) {
+      .orders-grid {
+        grid-template-columns: 1fr;
+      }
+      .navbar {
+        padding: 10px 12px;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .navbar-right {
+        width: 100%;
+        justify-content: space-between;
+      }
+      .simulation-controls {
+        order: 3;
+        width: 100%;
+        justify-content: center;
+      }
+    }
+
+    /* ========== 订单卡片 ========== */
+    .order-card {
+      background: var(--card-bg);
+      border-radius: var(--radius-lg);
+      padding: 16px 18px;
+      box-shadow: var(--shadow-sm);
+      border: 1px solid var(--border);
+      transition: all var(--transition);
+      animation: cardAppear 0.35s ease-out;
+    }
+    @keyframes cardAppear {
+      from {
+        opacity: 0;
+        transform: scale(0.95) translateY(8px);
+      }
+      to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+      }
+    }
+    .order-card.active-card:hover {
+      box-shadow: var(--shadow-lg);
+      transform: translateY(-2px);
+      border-color: #d4c5a9;
+    }
+    .order-card.new-order {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(196, 30, 58, 0.15), var(--shadow-md);
+      animation: cardAppear 0.35s ease-out, newOrderGlow 1.5s ease-in-out 3;
+    }
+    @keyframes newOrderGlow {
+      0%,
+      100% {
+        box-shadow: 0 0 0 3px rgba(196, 30, 58, 0.15), var(--shadow-md);
+      }
+      50% {
+        box-shadow: 0 0 0 8px rgba(196, 30, 58, 0.35), 0 8px 28px rgba(196, 30, 58, 0.25);
+      }
+    }
+
+    /* 状态标签 */
+    .order-status-badge {
+      font-size: 0.65rem;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 20px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+    .badge-pending {
+      background: #fff3e0;
+      color: #e65100;
+      border: 1px solid #ffcc80;
+    }
+    .badge-confirmed {
+      background: #e3f2fd;
+      color: #0d47a1;
+      border: 1px solid #90caf9;
+    }
+    .badge-preparing {
+      background: #fff8e1;
+      color: #e65100;
+      border: 1px solid #ffe082;
+      animation: preparingPulse 1.5s ease-in-out infinite;
+    }
+    .badge-ready {
+      background: #e8f5e9;
+      color: #1b5e20;
+      border: 1px solid #a5d6a7;
+    }
+    .badge-delivering {
+      background: #e8eaf6;
+      color: #1a237e;
+      border: 1px solid #9fa8da;
+      animation: deliveringPulse 2s ease-in-out infinite;
+    }
+    .badge-completed {
+      background: #e8f5e9;
+      color: #2e7d32;
+      border: 1px solid #81c784;
+    }
+    @keyframes preparingPulse {
+      0%,
+      100% {
+        box-shadow: 0 0 0 0 rgba(255, 160, 0, 0.4);
+      }
+      50% {
+        box-shadow: 0 0 0 8px rgba(255, 160, 0, 0);
+      }
+    }
+    @keyframes deliveringPulse {
+      0%,
+      100% {
+        box-shadow: 0 0 0 0 rgba(59, 111, 182, 0.4);
+      }
+      50% {
+        box-shadow: 0 0 0 8px rgba(59, 111, 182, 0);
+      }
+    }
+
+    .status-timeline {
+      display: flex;
+      align-items: center;
+      margin: 10px 0;
+    }
+    .status-step {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      flex: 1;
+      min-width: 50px;
+      position: relative;
+    }
+    .step-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #ddd;
+      border: 2px solid #ccc;
+      z-index: 2;
+      transition: all 0.4s ease;
+    }
+    .status-step.completed .step-dot {
+      background: var(--success);
+      border-color: var(--success);
+      box-shadow: 0 0 0 3px rgba(45, 139, 78, 0.2);
+    }
+    .status-step.active .step-dot {
+      background: var(--gold);
+      border-color: #b8860b;
+      box-shadow: 0 0 0 5px rgba(200, 150, 60, 0.3);
+      animation: activeDotPulse 1.2s ease-in-out infinite;
+      width: 16px;
+      height: 16px;
+    }
+    @keyframes activeDotPulse {
+      0%,
+      100% {
+        box-shadow: 0 0 0 4px rgba(200, 150, 60, 0.3);
+      }
+      50% {
+        box-shadow: 0 0 0 10px rgba(200, 150, 60, 0.05);
+      }
+    }
+    .step-label {
+      font-size: 0.55rem;
+      color: #bbb;
+      margin-top: 2px;
+      white-space: nowrap;
+    }
+    .status-step.completed .step-label {
+      color: var(--success);
+      font-weight: 600;
+    }
+    .status-step.active .step-label {
+      color: #b8860b;
+      font-weight: 700;
+    }
+    .step-connector {
+      position: absolute;
+      top: 6px;
+      left: 50%;
+      width: 100%;
+      height: 2px;
+      background: #e0d8cc;
+      z-index: 1;
+    }
+    .status-step.completed .step-connector {
+      background: var(--success);
+    }
+    .status-step:last-child .step-connector {
+      display: none;
+    }
+
+    .order-items {
+      list-style: none;
+      margin: 0 0 10px 0;
+      padding: 0;
+    }
+    .order-items li {
+      padding: 5px 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.85rem;
+      border-bottom: 1px dotted var(--border);
+      gap: 8px;
+    }
+    .item-name {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      flex: 1;
+      min-width: 0;
+    }
+    .item-qty {
+      background: #f5f0eb;
+      color: var(--text-secondary);
+      font-size: 0.65rem;
+      padding: 2px 6px;
+      border-radius: 10px;
+      font-weight: 600;
+      flex-shrink: 0;
+    }
+    .item-price {
+      font-weight: 600;
+      color: var(--text);
+      flex-shrink: 0;
+    }
+    .order-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-top: 8px;
+      border-top: 2px solid var(--border);
+      font-weight: 700;
+      font-size: 0.9rem;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .order-total {
+      color: var(--primary);
+      font-size: 1rem;
+    }
+    .customer-info {
+      font-size: 0.7rem;
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .action-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 7px 16px;
+      border-radius: 20px;
+      font-weight: 700;
+      font-size: 0.78rem;
+      letter-spacing: 0.03em;
+      cursor: pointer;
+      border: none;
+      transition: all var(--transition);
+      font-family: inherit;
+    }
+    .btn-confirm {
+      background: #c41e3a;
+      color: #fff;
+      box-shadow: 0 3px 10px rgba(196, 30, 58, 0.3);
+    }
+    .btn-ready {
+      background: #e8831a;
+      color: #fff;
+      box-shadow: 0 3px 10px rgba(232, 131, 26, 0.3);
+    }
+    .btn-auto-click {
+      animation: btnHighlight 0.6s ease-in-out 3;
+    }
+    @keyframes btnHighlight {
+      0%,
+      100% {
+        box-shadow: 0 3px 10px rgba(196, 30, 58, 0.3);
+      }
+      50% {
+        box-shadow: 0 0 24px rgba(255, 200, 40, 0.8);
+        transform: scale(1.05);
+      }
+    }
+    .action-hint {
+      font-size: 0.6rem;
+      color: var(--text-secondary);
+      font-style: italic;
+    }
+    .rider-info {
+      background: #f8f6f0;
+      border-radius: var(--radius-sm);
+      padding: 8px 12px;
+      margin-top: 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.75rem;
+      border: 1px dashed #d4c5a9;
+    }
+    .rider-avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: var(--info);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1rem;
+    }
+
+    /* 折叠已完成订单 */
+    .order-card.completed-collapsed {
+      padding: 0;
+      border-left: 4px solid var(--success);
+      background: #f8faf7;
+      overflow: hidden;
+    }
+    .collapse-header {
+      display: flex;
+      align-items: center;
+      padding: 10px 16px;
+      cursor: pointer;
+      gap: 12px;
+      user-select: none;
+      flex-wrap: wrap;
+    }
+    .collapse-header:hover {
+      background: rgba(0, 0, 0, 0.02);
+    }
+    .collapse-toggle {
+      margin-left: auto;
+      font-weight: 700;
+      color: var(--success);
+      transition: transform 0.3s;
+      font-size: 0.8rem;
+      white-space: nowrap;
+    }
+    .order-card.expanded .collapse-toggle {
+      transform: rotate(90deg);
+    }
+    .collapse-body {
+      padding: 0 16px;
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.45s ease, padding 0.3s;
+      background: #fff;
+      border-top: 1px dashed var(--border);
+    }
+    .order-card.expanded .collapse-body {
+      max-height: 800px;
+      padding: 12px 16px;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--text-secondary);
+      grid-column: 1 / -1;
+    }
+
+    .toast-container {
+      position: fixed;
+      top: 80px;
+      right: 24px;
+      z-index: 200;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      pointer-events: none;
+    }
+    .toast {
+      background: #1a0f0a;
+      color: #fff;
+      padding: 10px 16px;
+      border-radius: var(--radius-sm);
+      font-size: 0.8rem;
+      font-weight: 600;
+      box-shadow: var(--shadow-lg);
+      animation: toastIn 0.4s ease-out, toastOut 0.3s ease-in forwards;
+      pointer-events: auto;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      max-width: 350px;
+    }
+    @keyframes toastIn {
+      from {
+        opacity: 0;
+        transform: translateX(40px);
+      }
+      to {
+        opacity: 1;
+        transform: translateX(0);
+      }
+    }
+    @keyframes toastOut {
+      0% {
+        opacity: 1;
+      }
+      100% {
+        opacity: 0;
+        transform: translateX(20px);
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ==================== 顶部导航栏 ==================== -->
+  <nav class="navbar">
+    <div class="navbar-brand">
+      <div class="icon">🍵</div>
+      <div>金記掌櫃<span class="subtitle">Kam Kee Dispatching</span></div>
+    </div>
+    <div class="navbar-right">
+      <div class="navbar-time" title="NTP同步時間">
+        <div class="sync-indicator" id="syncIndicator"></div>
+        <div>
+          <span class="time-label">香港時間 HKT</span>
+          <span class="time-display" id="timeDisplay">--:--:--</span>
+        </div>
+      </div>
+      <div class="sound-toggle" id="soundToggle" title="切換提示音">
+        🔊 提示音
+      </div>
+      <div class="simulation-controls">
+        <button class="sim-btn btn-auto" id="btnAutoSim">▶️ 自動模擬</button>
+        <button class="sim-btn btn-manual" id="btnManualSim">👆 手動模擬</button>
+        <button class="sim-btn btn-stop" id="btnStopSim" disabled>⏹️ 結束模擬</button>
+        <span class="sim-status" id="simStatus">⏸️ 已暫停</span>
+      </div>
+      <div class="navbar-stats">
+        <span>📋 活躍 <span class="stat-value" id="activeCount">0</span></span>
+        <span>✅ 已完成 <span class="stat-value" id="completedCount">0</span></span>
+      </div>
+    </div>
+  </nav>
+
+  <div id="notificationContainer"></div>
+
+  <div class="main-container">
+    <div class="orders-grid" id="ordersGrid">
+      <div class="empty-state">
+        <div style="font-size:3rem; margin-bottom:12px;">🫖</div>
+        <p>等待開始模擬...</p>
+        <p style="font-size:0.8rem;">選擇「自動模擬」或「手動模擬」開始</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast-container" id="toastContainer"></div>
+
+  <script>
+    (function() {
+      // ========== 音频引擎 (Web Audio API) ==========
+      let audioCtx = null;
+      let soundEnabled = true;
+
+      function getAudioContext() {
+        if (!audioCtx) {
+          audioCtx = new(window.AudioContext || window.webkitAudioContext)();
+        }
+        // 确保 AudioContext 处于运行状态（某些浏览器需要用户交互后解锁）
+        if (audioCtx.state === 'suspended') {
+          audioCtx.resume();
+        }
+        return audioCtx;
+      }
+
+      /**
+       * 播放新订单提示音：短促明亮的两连音
+       */
+      function playNewOrderSound() {
+        if (!soundEnabled) return;
+        try {
+          const ctx = getAudioContext();
+          const now = ctx.currentTime;
+
+          // 第一个音：较高频率，短促
+          const osc1 = ctx.createOscillator();
+          const gain1 = ctx.createGain();
+          osc1.type = 'sine';
+          osc1.frequency.setValueAtTime(880, now);
+          osc1.frequency.setValueAtTime(1100, now + 0.06);
+          gain1.gain.setValueAtTime(0.3, now);
+          gain1.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+          osc1.connect(gain1);
+          gain1.connect(ctx.destination);
+          osc1.start(now);
+          osc1.stop(now + 0.18);
+
+          // 第二个音：稍低频率，紧跟其后
+          const osc2 = ctx.createOscillator();
+          const gain2 = ctx.createGain();
+          osc2.type = 'sine';
+          osc2.frequency.setValueAtTime(660, now + 0.1);
+          osc2.frequency.setValueAtTime(880, now + 0.16);
+          gain2.gain.setValueAtTime(0.25, now + 0.1);
+          gain2.gain.exponentialRampToValueAtTime(0.01, now + 0.28);
+          osc2.connect(gain2);
+          gain2.connect(ctx.destination);
+          osc2.start(now + 0.1);
+          osc2.stop(now + 0.32);
+        } catch (e) {
+          // 静默处理音频播放失败
+        }
+      }
+
+      /**
+       * 播放订单完成提示音：柔和的三连下行音
+       */
+      function playCompletedSound() {
+        if (!soundEnabled) return;
+        try {
+          const ctx = getAudioContext();
+          const now = ctx.currentTime;
+          const frequencies = [784, 659, 523]; // G5, E5, C5 下行
+          const startOffset = 0;
+
+          frequencies.forEach((freq, index) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(freq, now + index * 0.12);
+            gain.gain.setValueAtTime(0.25, now + index * 0.12);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + index * 0.12 + 0.25);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(now + index * 0.12);
+            osc.stop(now + index * 0.12 + 0.3);
+          });
+        } catch (e) {
+          // 静默处理
+        }
+      }
+
+      // 声音开关UI
+      const soundToggle = document.getElementById('soundToggle');
+      soundToggle.addEventListener('click', () => {
+        soundEnabled = !soundEnabled;
+        if (soundEnabled) {
+          soundToggle.classList.remove('muted');
+          soundToggle.innerHTML = '🔊 提示音';
+          // 解锁 AudioContext
+          getAudioContext();
+        } else {
+          soundToggle.classList.add('muted');
+          soundToggle.innerHTML = '🔇 靜音';
+        }
+      });
+
+      // 任何按钮点击时初始化音频上下文（浏览器策略要求）
+      document.addEventListener('click', function initAudio() {
+        getAudioContext();
+      }, { once: true });
+
+      // ========== NTP时间同步 ==========
+      const NTP_APIS = [
+        'https://worldtimeapi.org/api/timezone/Asia/Hong_Kong',
+        'https://timeapi.io/api/Time/current/zone?timeZone=Asia/Hong_Kong',
+      ];
+      let timeOffset = 0;
+      let isSyncing = false;
+      const SYNC_INTERVAL = 30000;
+      const DISPLAY_UPDATE_INTERVAL = 1000;
+
+      async function fetchNTPTime() {
+        for (const api of NTP_APIS) {
+          try {
+            const ctrl = new AbortController();
+            const tid = setTimeout(() => ctrl.abort(), 5000);
+            const resp = await fetch(api, { signal: ctrl.signal, cache: 'no-store' });
+            clearTimeout(tid);
+            if (!resp.ok) continue;
+            const data = await resp.json();
+            let ms;
+            if (data.datetime) ms = new Date(data.datetime).getTime();
+            else if (data.dateTime) ms = new Date(data.dateTime).getTime();
+            else if (data.unixtime) ms = data.unixtime * 1000;
+            else continue;
+            if (isNaN(ms)) continue;
+            return ms;
+          } catch (e) { continue; }
+        }
+        throw new Error('NTP API 不可用');
+      }
+
+      async function syncNTPTime() {
+        if (isSyncing) return;
+        isSyncing = true;
+        updateSyncIndicator('syncing');
+        try {
+          timeOffset = (await fetchNTPTime()) - Date.now();
+          updateSyncIndicator('synced');
+        } catch (e) {
+          timeOffset = 0;
+          updateSyncIndicator('error');
+        } finally { isSyncing = false; }
+      }
+
+      function updateSyncIndicator(state) {
+        const ind = document.getElementById('syncIndicator');
+        ind.classList.remove('syncing');
+        if (state === 'syncing') { ind.classList.add('syncing');
+          ind.style.background = '#ff9800'; } else if (state === 'synced') ind.style.background = '#4caf50';
+        else ind.style.background = '#f44336';
+      }
+
+      function getCorrectedTime() { return new Date(Date.now() + timeOffset); }
+
+      function updateTimeDisplay() {
+        document.getElementById('timeDisplay').textContent =
+          getCorrectedTime().toLocaleTimeString('zh-HK', { hour: '2-digit', minute: '2-digit', second: '2-digit',
+            hour12: false });
+      }
+
+      function initTimeSync() {
+        syncNTPTime();
+        updateTimeDisplay();
+        setInterval(updateTimeDisplay, DISPLAY_UPDATE_INTERVAL);
+        setInterval(syncNTPTime, SYNC_INTERVAL);
+      }
+
+      // ========== Toast & 通知 ==========
+      function showToast(msg, icon = '🔔', dur = 3000) {
+        const container = document.getElementById('toastContainer');
+        const toast = document.createElement('div');
+        toast.className = 'toast';
+        toast.innerHTML = `${icon} ${msg}`;
+        toast.style.animationDuration = '0.4s, 0.3s';
+        toast.style.animationDelay = `0s, ${dur / 1000 - 0.3}s`;
+        container.appendChild(toast);
+        setTimeout(() => { if (toast.parentNode) toast.remove(); }, dur);
+      }
+
+      function showBanner(msg, icon = '🔔', dur = 4000) {
+        const container = document.getElementById('notificationContainer');
+        container.innerHTML = '';
+        const banner = document.createElement('div');
+        banner.className = 'notification-banner';
+        banner.innerHTML = `<span>${icon}</span> ${msg}`;
+        container.appendChild(banner);
+        setTimeout(() => {
+          banner.classList.add('fade-out');
+          setTimeout(() => { if (banner.parentNode) banner.remove(); }, 400);
+        }, dur);
+      }
+
+      // ========== 订单数据 ==========
+      const ORDER_STATUSES = ['pending', 'confirmed', 'preparing', 'ready', 'delivering', 'completed'];
+      const STATUS_LABELS = {
+        pending: '待確認',
+        confirmed: '已確認',
+        preparing: '製作中',
+        ready: '等待騎手',
+        delivering: '送餐中',
+        completed: '已完成'
+      };
+      const STATUS_BADGE_CLASS = {
+        pending: 'badge-pending',
+        confirmed: 'badge-confirmed',
+        preparing: 'badge-preparing',
+        ready: 'badge-ready',
+        delivering: 'badge-delivering',
+        completed: 'badge-completed'
+      };
+      const STATUS_STEP_INDEX = { pending: 0, confirmed: 1, preparing: 2, ready: 3, delivering: 4, completed: 5 };
+      const STATUS_STEP_LABELS = ['已提交', '已確認', '製作中', '待取餐', '送餐中', '已送達'];
+
+      const MENU_ITEMS = [
+        { name: '叉燒飯', price: 52, emoji: '🍖' }, { name: '絲襪奶茶', price: 22, emoji: '🧋' },
+        { name: '菠蘿油', price: 18, emoji: '🧈' }, { name: '乾炒牛河', price: 58, emoji: '🍜' },
+        { name: '蛋撻', price: 12, emoji: '🥧' }, { name: '雲吞麵', price: 42, emoji: '🍲' },
+        { name: '港式鴛鴦', price: 24, emoji: '☕' }, { name: '燒鵝飯', price: 65, emoji: '🦆' },
+        { name: '西多士', price: 28, emoji: '🍞' }, { name: '凍檸茶', price: 20, emoji: '🍋' },
+        { name: '滑蛋牛肉飯', price: 48, emoji: '🥩' }, { name: '楊枝甘露', price: 32, emoji: '🥭' }
+      ];
+      const CUSTOMER_NAMES = ['張先生', '李小姐', '王太', '陳生', '劉小姐', '黃先生', '周小姐', '林先生'];
+      const ADDRESSES = ['中環皇后大道中100號18樓', '銅鑼灣駱克道520號5樓', '尖沙咀彌敦道132號', '旺角彌敦道688號'];
+      const RIDER_NAMES = ['陳師傅', '李師傅', '張師傅', '王師傅', '劉師傅'];
+
+      let orders = [];
+      let orderIdCounter = 1;
+      let activeOrdersCount = 0;
+      let completedOrdersCount = 0;
+      let simulationRunning = false;
+      let simulationMode = 'auto'; // 'auto' 或 'manual'
+      let maintainTimerId = null;
+      let autoGenIntervalId = null;
+
+      function randInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+
+      function randPick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+      function generateOrderItems() {
+        const cnt = randInt(1, 4);
+        const shuffled = [...MENU_ITEMS].sort(() => Math.random() - 0.5);
+        return shuffled.slice(0, cnt).map(item => ({ ...item, quantity: randInt(1, 3) }));
+      }
+
+      function calcTotal(items) { return items.reduce((sum, i) => sum + i.price * i.quantity, 0); }
+
+      const grid = document.getElementById('ordersGrid');
+
+      function removeEmptyState() {
+        const empty = grid.querySelector('.empty-state');
+        if (empty) empty.remove();
+      }
+
+      function activeCardHTML(order) {
+        const statusLabel = STATUS_LABELS[order.status];
+        const badgeClass = STATUS_BADGE_CLASS[order.status];
+        const currentStep = STATUS_STEP_INDEX[order.status];
+        let timeline = '<div class="status-timeline">';
+        STATUS_STEP_LABELS.forEach((label, i) => {
+          let cls = i < currentStep ? 'completed' : (i === currentStep ? 'active' : '');
+          timeline +=
+            `<div class="status-step ${cls}"><div class="step-connector"></div><div class="step-dot"></div><div class="step-label">${label}</div></div>`;
+        });
+        timeline += '</div>';
+
+        let itemsHTML = '<ul class="order-items">';
+        order.items.forEach(item => {
+          itemsHTML +=
+            `<li><span class="item-name">${item.emoji} ${item.name} <span class="item-qty">x${item.quantity}</span></span><span class="item-price">HK$${(item.price * item.quantity).toFixed(0)}</span></li>`;
+        });
+        itemsHTML += '</ul>';
+
+        let actionHTML = '';
+        if (order.status === 'pending') {
+          const hint = simulationMode === 'manual' ? '（需手動確認）' : '（將自動確認）';
+          actionHTML =
+            `<button class="action-btn btn-confirm" data-action="confirm" data-order-id="${order.id}">✅ 確認訂單</button><span class="action-hint">${hint}</span>`;
+        } else if (order.status === 'preparing') {
+          const hint = simulationMode === 'manual' ? '（需手動標記）' : '（將自動標記）';
+          actionHTML =
+            `<button class="action-btn btn-ready" data-action="ready" data-order-id="${order.id}">🍽️ 製作完成</button><span class="action-hint">${hint}</span>`;
+        } else if (order.status === 'confirmed') {
+          actionHTML = '<span style="font-size:0.78rem;color:#e65100;">👨‍🍳 廚房製作中...</span>';
+        } else if (order.status === 'ready') {
+          actionHTML = '<span style="font-size:0.78rem;color:#1b5e20;">⏳ 等待騎手取餐...</span>';
+        } else if (order.status === 'delivering') {
+          actionHTML = '<span style="font-size:0.78rem;color:#1a237e;">🛵 騎手送餐中...</span>';
+        }
+
+        let riderHTML = '';
+        if (order.rider && (order.status === 'ready' || order.status === 'delivering')) {
+          riderHTML =
+            `<div class="rider-info"><div class="rider-avatar">🏍️</div><div><strong>${order.rider}</strong><br><small>${order.status === 'ready' ? '前往取餐' : '送餐途中'} · ${order.riderDistance}米</small></div></div>`;
+        }
+
+        const timeStr = order.createdAt.toLocaleTimeString('zh-HK', { hour: '2-digit', minute: '2-digit',
+          second: '2-digit', hour12: false });
+        return `
+          <div class="order-card-header">
+            <span class="order-id"><span class="hash">#</span>${order.id}</span>
+            <span class="order-time">🕐 ${timeStr}</span>
+            <span class="order-status-badge ${badgeClass}">${statusLabel}</span>
+          </div>
+          ${timeline}
+          ${itemsHTML}
+          <div class="order-footer">
+            <span class="order-total">合計 HK$${order.total.toFixed(0)}</span>
+            <span class="customer-info">👤 ${order.customer} · 📍 ${order.address}</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;margin-top:6px;flex-wrap:wrap;">${actionHTML}</div>
+          ${riderHTML}
+        `;
+      }
+
+      function completedCardHTML(order) {
+        const timeStr = order.completedTime ? order.completedTime.toLocaleTimeString('zh-HK', { hour: '2-digit',
+          minute: '2-digit', hour12: false }) : '';
+        const summary = `
+          <div class="collapse-header" data-action="toggle" data-order-id="${order.id}">
+            <span class="order-id"><span class="hash">#</span>${order.id}</span>
+            <span class="order-status-badge badge-completed">已完成</span>
+            <span class="order-total">HK$${order.total.toFixed(0)}</span>
+            <span class="completed-time">🕐 ${timeStr}</span>
+            <span class="collapse-toggle">${order.expanded ? '▾ 收起' : '▸ 展開'}</span>
+          </div>`;
+        let detail = '';
+        if (order.expanded) {
+          let itemsHTML = '<ul class="order-items">';
+          order.items.forEach(item => {
+            itemsHTML +=
+              `<li><span class="item-name">${item.emoji} ${item.name} <span class="item-qty">x${item.quantity}</span></span><span class="item-price">HK$${(item.price * item.quantity).toFixed(0)}</span></li>`;
+          });
+          itemsHTML += '</ul>';
+          detail = `
+            <div class="collapse-body" style="max-height:800px; padding:12px 16px;">
+              <div style="display:flex;gap:16px;flex-wrap:wrap;font-size:0.8rem;margin-bottom:8px;">
+                <span>👤 ${order.customer}</span>
+                <span>📍 ${order.address}</span>
+                ${order.rider ? `<span>🏍️ ${order.rider}</span>` : ''}
+              </div>
+              ${itemsHTML}
+              <div class="order-footer"><span class="order-total">合計 HK$${order.total.toFixed(0)}</span></div>
+            </div>`;
+        } else {
+          detail = '<div class="collapse-body"></div>';
+        }
+        return summary + detail;
+      }
+
+      function insertOrderCard(order) {
+        removeEmptyState();
+        const card = document.createElement('div');
+        card.className = 'order-card active-card';
+        if (order.status === 'pending' && order.statusHistory.length === 1) card.classList.add('new-order');
+        card.setAttribute('data-order-id', order.id);
+        card.innerHTML = activeCardHTML(order);
+        order.element = card;
+        grid.prepend(card);
+      }
+
+      function updateActiveCard(order) {
+        if (!order.element) return;
+        order.element.innerHTML = activeCardHTML(order);
+      }
+
+      function transformToCompleted(order) {
+        if (!order.element) return;
+        const newCard = document.createElement('div');
+        newCard.className = `order-card completed-collapsed ${order.expanded ? 'expanded' : ''}`;
+        newCard.setAttribute('data-order-id', order.id);
+        newCard.innerHTML = completedCardHTML(order);
+        order.element.replaceWith(newCard);
+        order.element = newCard;
+      }
+
+      function updateCompletedCard(order) {
+        if (!order.element) return;
+        order.element.innerHTML = completedCardHTML(order);
+      }
+
+      function removeOrderCard(order) {
+        if (order.autoTimerId) { clearTimeout(order.autoTimerId);
+          order.autoTimerId = null; }
+        if (order.element && order.element.parentNode) { order.element.remove();
+          order.element = null; }
+      }
+
+      // 创建新订单
+      function createNewOrder() {
+        if (!simulationRunning) return;
+        if (activeOrdersCount >= 10) return;
+        const items = generateOrderItems();
+        const total = calcTotal(items);
+        const order = {
+          id: `HK-${String(orderIdCounter).padStart(4, '0')}`,
+          items,
+          total,
+          status: 'pending',
+          customer: randPick(CUSTOMER_NAMES),
+          address: randPick(ADDRESSES),
+          rider: null,
+          riderDistance: null,
+          createdAt: getCorrectedTime(),
+          completedTime: null,
+          statusHistory: [{ status: 'pending', time: getCorrectedTime() }],
+          autoTimerId: null,
+          expanded: false,
+          element: null,
+        };
+        orderIdCounter++;
+        orders.push(order);
+        activeOrdersCount++;
+        insertOrderCard(order);
+        scheduleAutoAction(order, 'pending');
+        updateStats();
+
+        // ★ 新订单提示音
+        playNewOrderSound();
+
+        if (activeOrdersCount <= 6) {
+          showBanner(`🆕 新訂單 ${order.id} · ${order.customer} · HK$${total}`, '🔔', 4000);
+        } else {
+          showToast(`新訂單 ${order.id}`, '📋', 2500);
+        }
+      }
+
+      // 安排自动状态推进
+      function scheduleAutoAction(order, fromStatus) {
+        if (!simulationRunning) return;
+        if (order.autoTimerId) clearTimeout(order.autoTimerId);
+        // 手动模式：pending 和 preparing 不自动推进
+        if (simulationMode === 'manual' && (fromStatus === 'pending' || fromStatus === 'preparing')) {
+          return;
+        }
+        let delay;
+        switch (fromStatus) {
+          case 'pending':
+            delay = randInt(2000, 5000);
+            break;
+          case 'confirmed':
+            delay = randInt(6000, 14000);
+            break;
+          case 'preparing':
+            delay = randInt(3000, 6000);
+            break;
+          case 'ready':
+            delay = randInt(5000, 10000);
+            break;
+          case 'delivering':
+            delay = randInt(5000, 12000);
+            break;
+          default:
+            return;
+        }
+        order.autoTimerId = setTimeout(() => {
+          if (!simulationRunning) return;
+          simulateButtonClick(order, fromStatus);
+        }, delay);
+      }
+
+      function simulateButtonClick(order, fromStatus) {
+        if (fromStatus === 'pending' || fromStatus === 'preparing') {
+          const btn = order.element?.querySelector(fromStatus === 'pending' ? '.btn-confirm' : '.btn-ready');
+          if (btn) {
+            btn.classList.add('btn-auto-click');
+            setTimeout(() => {
+              if (btn) btn.classList.remove('btn-auto-click');
+              advanceOrderStatus(order);
+            }, 600);
+            return;
+          }
+        }
+        advanceOrderStatus(order);
+      }
+
+      function advanceOrderStatus(order) {
+        const idx = ORDER_STATUSES.indexOf(order.status);
+        if (idx >= ORDER_STATUSES.length - 1) return;
+        const next = ORDER_STATUSES[idx + 1];
+        order.status = next;
+        order.statusHistory.push({ status: next, time: getCorrectedTime() });
+
+        if (next === 'confirmed') {
+          order.rider = randPick(RIDER_NAMES);
+          order.riderDistance = randInt(200, 1500);
+        } else if (next === 'ready') {
+          order.riderDistance = randInt(50, 300);
+        } else if (next === 'delivering') {
+          order.riderDistance = randInt(100, 2000);
+        } else if (next === 'completed') {
+          order.completedTime = getCorrectedTime();
+          activeOrdersCount--;
+          completedOrdersCount++;
+          transformToCompleted(order);
+          updateStats();
+
+          // ★ 订单完成提示音
+          playCompletedSound();
+
+          if (simulationRunning && activeOrdersCount < 3) createNewOrder();
+          return;
+        }
+
+        updateActiveCard(order);
+        updateStats();
+        if (next !== 'completed' && simulationRunning) scheduleAutoAction(order, next);
+      }
+
+      function manualConfirm(order) {
+        if (!simulationRunning || order.status !== 'pending') return;
+        if (order.autoTimerId) clearTimeout(order.autoTimerId);
+        advanceOrderStatus(order);
+      }
+
+      function manualReady(order) {
+        if (!simulationRunning || order.status !== 'preparing') return;
+        if (order.autoTimerId) clearTimeout(order.autoTimerId);
+        advanceOrderStatus(order);
+      }
+
+      function toggleOrderExpand(orderId) {
+        const order = orders.find(o => o.id === orderId);
+        if (!order || order.status !== 'completed') return;
+        order.expanded = !order.expanded;
+        updateCompletedCard(order);
+      }
+
+      document.addEventListener('click', function(e) {
+        const target = e.target.closest('[data-action]');
+        if (!target) return;
+        const action = target.getAttribute('data-action');
+        const orderId = target.getAttribute('data-order-id');
+        if (action === 'confirm') { const o = orders.find(o => o.id === orderId); if (o) manualConfirm(o); } else if (
+          action === 'ready') { const o = orders.find(o => o.id === orderId); if (o) manualReady(o); } else if (
+          action === 'toggle') toggleOrderExpand(orderId);
+      });
+
+      function updateStats() {
+        document.getElementById('activeCount').textContent = activeOrdersCount;
+        document.getElementById('completedCount').textContent = completedOrdersCount;
+      }
+
+      function setSimulationMode(mode) {
+        simulationMode = mode;
+        orders.forEach(order => {
+          if (order.status === 'pending' || order.status === 'preparing') {
+            updateActiveCard(order);
+          }
+        });
+      }
+
+      function startSimulation(mode) {
+        if (simulationRunning) stopSimulation(true);
+        simulationRunning = true;
+        setSimulationMode(mode);
+        document.getElementById('btnAutoSim').disabled = true;
+        document.getElementById('btnManualSim').disabled = true;
+        document.getElementById('btnStopSim').disabled = false;
+        const statusText = mode === 'auto' ? '▶️ 自動模擬運行中' : '👆 手動模擬運行中';
+        document.getElementById('simStatus').textContent = statusText;
+
+        orders.forEach(o => { if (o.autoTimerId) clearTimeout(o.autoTimerId);
+          removeOrderCard(o); });
+        orders = [];
+        activeOrdersCount = 0;
+        completedOrdersCount = 0;
+        orderIdCounter = 1;
+        grid.innerHTML =
+          '<div class="empty-state"><div style="font-size:3rem;">🫖</div><p>等待開始模擬...</p></div>';
+        updateStats();
+
+        const initial = randInt(3, 5);
+        for (let i = 0; i < initial; i++) createNewOrder();
+
+        autoGenIntervalId = setInterval(() => {
+          if (simulationRunning && activeOrdersCount < 10) createNewOrder();
+        }, randInt(10000, 15000));
+
+        function maintainMinOrders() {
+          if (!simulationRunning) return;
+          if (activeOrdersCount < 3) createNewOrder();
+          maintainTimerId = setTimeout(maintainMinOrders, 4000);
+        }
+        maintainMinOrders();
+      }
+
+      function stopSimulation(silent = false) {
+        if (!simulationRunning) return;
+        simulationRunning = false;
+        document.getElementById('btnAutoSim').disabled = false;
+        document.getElementById('btnManualSim').disabled = false;
+        document.getElementById('btnStopSim').disabled = true;
+        document.getElementById('simStatus').textContent = '⏸️ 已暫停';
+
+        if (autoGenIntervalId) { clearInterval(autoGenIntervalId);
+          autoGenIntervalId = null; }
+        if (maintainTimerId) { clearTimeout(maintainTimerId);
+          maintainTimerId = null; }
+        orders.forEach(o => { if (o.autoTimerId) { clearTimeout(o.autoTimerId);
+            o.autoTimerId = null; } });
+        if (!silent) showBanner('模擬已結束，訂單保留', '⏹️', 3000);
+      }
+
+      document.getElementById('btnAutoSim').addEventListener('click', () => startSimulation('auto'));
+      document.getElementById('btnManualSim').addEventListener('click', () => startSimulation('manual'));
+      document.getElementById('btnStopSim').addEventListener('click', () => stopSimulation());
+
+      initTimeSync();
+      updateStats();
+      console.log('🍵 金記掌櫃 · 提示音功能已啟用');
+    })();
+  </script>
+</body>
+</html>

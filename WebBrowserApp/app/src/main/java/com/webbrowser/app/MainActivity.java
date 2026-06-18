@@ -3,11 +3,13 @@ package com.webbrowser.app;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Environment;
 import android.os.PowerManager;
 import android.view.KeyEvent;
 import android.view.View;
@@ -32,14 +34,30 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
+import org.json.JSONArray;
+import org.json.JSONException;
+
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.util.ArrayList;
+import java.util.List;
+
 public class MainActivity extends AppCompatActivity {
 
     private WebView webView;
     private EditText urlInput;
     private ProgressBar progressBar;
-    private Button btnGo, btnLocal, btnSettings;
+    private Button btnGo, btnLocal, btnHistory, btnSettings;
 
     private PowerManager.WakeLock wakeLock;
+
+    private static final String PREFS_NAME = "browser_prefs";
+    private static final String KEY_HISTORY = "url_history";
+    private static final String KEY_HTML_COPIED = "html_copied";
+    private static final int MAX_HISTORY = 20;
 
     private final ActivityResultLauncher<Intent> filePickerLauncher =
             registerForActivityResult(
@@ -85,6 +103,9 @@ public class MainActivity extends AppCompatActivity {
 
         // 启动电池监控服务
         startBatteryServiceIfPermitted();
+
+        // 首次启动：拷贝内置HTML到下载目录
+        copyHtmlToDownloads();
 
         // 默认加载
         webView.loadUrl("https://www.google.com");
@@ -153,6 +174,7 @@ public class MainActivity extends AppCompatActivity {
         progressBar = findViewById(R.id.progress_bar);
         btnGo = findViewById(R.id.btn_go);
         btnLocal = findViewById(R.id.btn_local);
+        btnHistory = findViewById(R.id.btn_history);
         btnSettings = findViewById(R.id.btn_settings);
     }
 
@@ -193,6 +215,7 @@ public class MainActivity extends AppCompatActivity {
             public void onPageFinished(WebView view, String url) {
                 progressBar.setVisibility(View.GONE);
                 urlInput.setText(url);
+                addToHistory(url);
             }
         });
 
@@ -225,6 +248,9 @@ public class MainActivity extends AppCompatActivity {
         // 本地文件按钮
         btnLocal.setOnClickListener(v -> openLocalFile());
 
+        // 历史记录按钮
+        btnHistory.setOnClickListener(v -> showHistoryDialog());
+
         // 设置按钮
         btnSettings.setOnClickListener(v -> showSettingsDialog());
     }
@@ -244,6 +270,7 @@ public class MainActivity extends AppCompatActivity {
         }
 
         webView.loadUrl(url);
+        addToHistory(url);
     }
 
     private void openLocalFile() {
@@ -295,6 +322,102 @@ public class MainActivity extends AppCompatActivity {
             startService(serviceIntent);
         }
     }
+
+    // ==================== HTML 拷贝到下载目录 ====================
+
+    private void copyHtmlToDownloads() {
+        SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+        if (prefs.getBoolean(KEY_HTML_COPIED, false)) return;
+
+        String fileName = "DimOrderTest2.html";
+        File downloadsDir = getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS);
+        if (downloadsDir == null) return;
+        if (!downloadsDir.exists()) downloadsDir.mkdirs();
+
+        File destFile = new File(downloadsDir, fileName);
+        try (InputStream in = getAssets().open(fileName);
+             OutputStream out = new FileOutputStream(destFile)) {
+            byte[] buf = new byte[8192];
+            int len;
+            while ((len = in.read(buf)) > 0) {
+                out.write(buf, 0, len);
+            }
+            prefs.edit().putBoolean(KEY_HTML_COPIED, true).apply();
+            Toast.makeText(this, fileName + " " + getString(R.string.html_copied), Toast.LENGTH_LONG).show();
+        } catch (IOException e) {
+            // 文件可能已在assets中不存在，静默失败
+        }
+    }
+
+    // ==================== URL 历史记录 ====================
+
+    private void addToHistory(String url) {
+        if (url == null || url.isEmpty() || url.startsWith("data:") || url.startsWith("about:")) return;
+
+        List<String> history = getHistory();
+        // 去重：移除已存在的相同URL
+        history.remove(url);
+        // 插入到最前面
+        history.add(0, url);
+        // 保留最近20条
+        if (history.size() > MAX_HISTORY) {
+            history = history.subList(0, MAX_HISTORY);
+        }
+        saveHistory(history);
+    }
+
+    private List<String> getHistory() {
+        List<String> list = new ArrayList<>();
+        SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+        String json = prefs.getString(KEY_HISTORY, "[]");
+        try {
+            JSONArray arr = new JSONArray(json);
+            for (int i = 0; i < arr.length(); i++) {
+                list.add(arr.getString(i));
+            }
+        } catch (JSONException ignored) {}
+        return list;
+    }
+
+    private void saveHistory(List<String> history) {
+        JSONArray arr = new JSONArray();
+        for (String url : history) {
+            arr.put(url);
+        }
+        getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+                .edit().putString(KEY_HISTORY, arr.toString()).apply();
+    }
+
+    private void showHistoryDialog() {
+        List<String> history = getHistory();
+        if (history.isEmpty()) {
+            Toast.makeText(this, R.string.history_empty, Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        String[] items = new String[history.size()];
+        for (int i = 0; i < history.size(); i++) {
+            String url = history.get(i);
+            // 截断显示（太长影响UI）
+            items[i] = url.length() > 50 ? url.substring(0, 47) + "..." : url;
+        }
+
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.history_title)
+                .setItems(items, (dialog, which) -> {
+                    String url = history.get(which);
+                    urlInput.setText(url);
+                    webView.loadUrl(url);
+                })
+                .setPositiveButton("清空历史", (dialog, which) -> {
+                    saveHistory(new ArrayList<>());
+                    Toast.makeText(this, "历史已清空", Toast.LENGTH_SHORT).show();
+                })
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
+    }
+
+    // ==================== 生命周期 ====================
 
     @Override
     public void onBackPressed() {
